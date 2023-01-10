@@ -1,5 +1,6 @@
 #include "MaterialCustomMultiply.h"
 #include "MaterialCompiler.h"
+#include "Materials/MaterialExpressionCustom.h"
 #if WITH_EDITOR
 #include "MaterialGraph/MaterialGraphNode.h"
 #endif
@@ -10,52 +11,50 @@
 //const float ConstBB = 1.f;
 int32 UMaterialExpressionCustomMultiply::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	if (AddinputValues.Num() <= 2)
+	int32 Current = 1;
+	if(Inputs.Num()>0)
 	{
-		int32 Arg1 = A.GetTracedInput().Expression ? A.Compile(Compiler) : Compiler->Constant(ConstA);
-
-		int32 Arg2 = B.GetTracedInput().Expression ? B.Compile(Compiler) : Compiler->Constant(ConstB);
-
-		return Compiler->Mul(Arg1, Arg2);
-	}
-	int32 Current = AddinputValues[0].Compile(Compiler);
-	for (int i = 1; i < AddinputValues.Num(); i++)
-	{
+		Current = Inputs[0].Input.Compile(Compiler);
+		for (int i = 1; i < Inputs.Num(); i++)
+		{
+			if(Inputs[i].Input.GetTracedInput().Expression)
+			{
+				Current = Compiler->Mul(Current, Inputs[i].Input.Compile(Compiler));
+			}
+			else
+			{
+				Current = Compiler->Mul(Current,Compiler->Constant(1));
+			}
 		
-			Current = Compiler->Mul(Current, AddinputValues[i].Compile(Compiler));
-		
+		}
 	}
+	
 	return Current;
 }
 void UMaterialExpressionCustomMultiply::GetCaption(TArray<FString>& OutCaptions) const
 {
 	FString ret = TEXT("CustomMultiply");
-
-
-	if (AddinputValues.Num() <= 2)
-	{
-		FExpressionInput ATraced = A.GetTracedInput();
-		FExpressionInput BTraced = B.GetTracedInput();
-		if (!ATraced.Expression || !BTraced.Expression)
-		{
-			ret += TEXT("(");
-			ret += ATraced.Expression ? TEXT(",") : FString::Printf(TEXT("%.4g,"), ConstA);
-			ret += BTraced.Expression ? TEXT(")") : FString::Printf(TEXT("%.4g)"), ConstB);
-		}
-	};
-
 	OutCaptions.Add(ret);
 }
 const TArray<FExpressionInput*> UMaterialExpressionCustomMultiply::GetInputs()
 {
-	AddinputValues.SetNum(Valuecount);
 	TArray<FExpressionInput*> Result;
-	for (int i = 0; i < AddinputValues.Num(); i++)
+	for (int i = 0; i < Inputs.Num(); i++)
 	{
-		Result.Add(&AddinputValues[i]);
+		Result.Add(&Inputs[i].Input);
 	}
 	return Result;
 }
+
+FName UMaterialExpressionCustomMultiply::GetInputName(int32 InputIndex) const
+{
+	if( InputIndex < Inputs.Num() )
+	{
+		return Inputs[InputIndex].InputName;
+	}
+	return NAME_None;
+}
+
 void UMaterialExpressionCustomMultiply::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -72,7 +71,11 @@ void UMaterialExpressionCustomMultiply::PostEditChangeProperty(FPropertyChangedE
 UMaterialExpressionCustomMultiply::UMaterialExpressionCustomMultiply(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	ConstA = 0.0f;
-	ConstB = 1.0f;
-	Valuecount = 2;
+	FCustomInput A;
+	FCustomInput B;
+	A.InputName = "A";
+	B.InputName = "B";
+	Inputs.Add(A);
+	Inputs.Add(B);
+	
 }

@@ -30,7 +30,7 @@ public:
 		FString NodeName;
 
 	//~ Filepath to selected a usf file
-	UPROPERTY(EditAnywhere, Category = MaterialExpressionCustom, meta = ( RelativeToGameDir))
+	UPROPERTY(EditAnywhere, Category = MaterialExpressionCustom)//,meta = (RelativeToGameDir)
 		FFilePath File;
 
 	//~ Code read from file, not modifiable but visible

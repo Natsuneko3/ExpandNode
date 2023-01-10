@@ -23,7 +23,6 @@ UMaterialExpressionCustomReader::UMaterialExpressionCustomReader(const FObjectIn
 	OutputType = CMOT_Float3;
 
 #if WITH_EDITORONLY_DATA
-	MenuCategories.Add(LOCTEXT("BearTeacher", "BearTeacher"));
 	MenuCategories.Add(LOCTEXT("Custom", "Custom"));
 #endif
 
@@ -49,6 +48,7 @@ void UMaterialExpressionCustomReader::PostEditChangeProperty(FPropertyChangedEve
 		{
 			FExpandNodeModule::GetFileScanner()->RegisterFile(File.FilePath);
 		}
+		
 	}
 
 	// strip any spaces from input name
@@ -88,6 +88,8 @@ void UMaterialExpressionCustomReader::PostLoad()
 	{
 		FExpandNodeModule::GetFileScanner()->RegisterFile(File.FilePath);
 	}
+	
+	
 #endif
 }
 
@@ -175,7 +177,8 @@ bool UMaterialExpressionCustomReader::ParseFile(const FString& File, FString& Ou
 	for (int32 i = 0; i < Lines.Num(); i++)
 	{
 		CodeStart++;
-		if ((Lines[i].Contains("float ") || Lines[i].Contains("float2 ") || Lines[i].Contains("float3 ") || Lines[i].Contains("float4 ")) && Lines[i].Contains(";"))
+		if ((Lines[i].Contains("float") || Lines[i].Contains("int") || Lines[i].Contains("texture")
+			|| Lines[i].Contains("double")|| Lines[i].Contains("uint")|| Lines[i].Contains("half")) && Lines[i].Contains(";"))
 		{
 			FString right;
 			Lines[i].Split(" ", nullptr, &right);
