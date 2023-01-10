@@ -38,6 +38,9 @@ public class ExpandNode : ModuleRules
 				"Engine",
 				"Slate",
 				"SlateCore",
+				"MaterialEditor",
+				"UnrealEd",
+				"RenderCore"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
@@ -47,6 +50,7 @@ public class ExpandNode : ModuleRules
 			new string[]
 			{
 				// ... add any modules that your module loads dynamically here ...
+				
 			}
 			);
 	}

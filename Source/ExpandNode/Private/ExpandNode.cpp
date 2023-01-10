@@ -13,7 +13,13 @@ void FExpandNodeModule::StartupModule()
 	#if WITH_EDITOR
 	FOnFileUpdated OnFileUpdated = FOnFileUpdated::CreateRaw(this, &FExpandNodeModule::OnFileUpdated);
 	FileScanner = new FFileScanner(OnFileUpdated);	
-#endif
+	#endif
+	/*FString PluginShaderDir = FPaths::Combine(FPaths::ProjectDir(), TEXT("Shaders"));
+	if(!FPaths::DirectoryExists(PluginShaderDir))
+	{
+		IFileManager::Get().MakeDirectory(*PluginShaderDir);
+	}
+	AddShaderSourceDirectoryMapping(TEXT("/Shaders"), PluginShaderDir);*/
 }
 
 void FExpandNodeModule::ShutdownModule()

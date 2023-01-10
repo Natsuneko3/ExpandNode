@@ -1,36 +1,37 @@
-#include "MaterialCustomAdd.h"
+﻿// Fill out your copyright notice in the Description page of Project Settings.
+
+
+#include "MaterialExpressionCustomSubtract.h"
+
 #include "MaterialCompiler.h"
 #include "Materials/MaterialExpressionCustom.h"
+
 #if WITH_EDITOR
 #include "MaterialGraph/MaterialGraphNode.h"
 #endif
-
-
 #if WITH_EDITOR
-//const float ConstAA = 0.f;
-//const float ConstBB = 1.f;
-int32 UMaterialExpressionCustomAdd::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+int32 UMaterialExpressionCustomSubtract::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	int32 Current = 0;
-	if(Inputs.Num()>0)
+	if (Inputs.Num() > 0)
 	{
 		Current = Inputs[0].Input.Compile(Compiler);
 		for (int i = 1; i < Inputs.Num(); i++)
 		{
-			if(Inputs[i].Input.GetTracedInput().Expression)
+			if (Inputs[i].Input.GetTracedInput().Expression)
 			{
-				Current = Compiler->Add(Current, Inputs[i].Input.Compile(Compiler));
+				Current = Compiler->Sub(Current, Inputs[i].Input.Compile(Compiler));
 			}
 			else
 			{
-				Current = Compiler->Add(Current,Compiler->Constant(0));
+				Current = Compiler->Sub(Current, Compiler->Constant(0));
 			}
-		
 		}
 	}
 	return Current;
 }
-void UMaterialExpressionCustomAdd::GetCaption(TArray<FString>& OutCaptions) const
+
+void UMaterialExpressionCustomSubtract::GetCaption(TArray<FString>& OutCaptions) const
 {
 	FString ret = TEXT("CustomAdd");
 
@@ -49,7 +50,8 @@ void UMaterialExpressionCustomAdd::GetCaption(TArray<FString>& OutCaptions) cons
 
 	OutCaptions.Add(ret);
 }
-const TArray<FExpressionInput*> UMaterialExpressionCustomAdd::GetInputs()
+
+const TArray<FExpressionInput*> UMaterialExpressionCustomSubtract::GetInputs()
 {
 	//AddinputValues.SetNum(Valuecount);
 	TArray<FExpressionInput*> Result;
@@ -60,32 +62,29 @@ const TArray<FExpressionInput*> UMaterialExpressionCustomAdd::GetInputs()
 	return Result;
 }
 
-FName UMaterialExpressionCustomAdd::GetInputName(int32 InputIndex) const
+FName UMaterialExpressionCustomSubtract::GetInputName(int32 InputIndex) const
 {
-	if( InputIndex < Inputs.Num() )
+	if (InputIndex < Inputs.Num())
 	{
 		return Inputs[InputIndex].InputName;
 	}
 	return NAME_None;
 }
 
-void UMaterialExpressionCustomAdd::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+void UMaterialExpressionCustomSubtract::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	Super::PostEditChangeProperty(PropertyChangedEvent);	
-	
-		if (UMaterialGraphNode* MatGraphNode = Cast<UMaterialGraphNode>(GraphNode))
-		{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-			MatGraphNode->RecreateAndLinkNode();
-		}
-	
+	if (UMaterialGraphNode* MatGraphNode = Cast<UMaterialGraphNode>(GraphNode))
+	{
+		MatGraphNode->RecreateAndLinkNode();
+	}
 }
 
 #endif // WITH_EDITOR;
-UMaterialExpressionCustomAdd::UMaterialExpressionCustomAdd(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer) 
+UMaterialExpressionCustomSubtract::UMaterialExpressionCustomSubtract(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
-	
 	FCustomInput A;
 	FCustomInput B;
 	A.InputName = "A";
