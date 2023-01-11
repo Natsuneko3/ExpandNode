@@ -32,6 +32,9 @@ public:
 	//~ Filepath to selected a usf file
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionCustom)//,meta = (RelativeToGameDir)
 		FFilePath File;
+ 	
+ 	UPROPERTY(EditAnywhere, Category=MaterialExpressionCustom)
+ 	TArray<FString> IncludeFilePaths;
 
 	//~ Code read from file, not modifiable but visible
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionCustom, meta = (MultiLine = true))

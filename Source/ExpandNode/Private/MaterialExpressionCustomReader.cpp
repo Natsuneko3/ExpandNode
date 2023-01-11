@@ -73,7 +73,8 @@ void UMaterialExpressionCustomReader::PostEditChangeProperty(FPropertyChangedEve
 		{
 			GraphNode->ReconstructNode();
 		}
-	} 
+	}
+	Custom->IncludeFilePaths = IncludeFilePaths;
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
@@ -347,7 +348,7 @@ void UMaterialExpressionCustomReader::EditFile()
 
 bool UMaterialExpressionCustomReader::ContainExpression()
 {
-	for (auto& e : Material->Expressions)
+	for (auto& e : Material->GetExpressions())
 	{
 		if (e == this)
 		{
