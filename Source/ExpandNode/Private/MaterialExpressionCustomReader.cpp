@@ -1,6 +1,8 @@
 // Copyright 2020 Jorge CR. All Rights Reserved.
 #include "MaterialExpressionCustomReader.h"
 
+
+
 #if WITH_EDITOR
 #include "MaterialEditor/Public/MaterialEditingLibrary.h"
 #endif
@@ -65,18 +67,43 @@ void UMaterialExpressionCustomReader::PostEditChangeProperty(FPropertyChangedEve
 		}
 	}
 
+	RebuildOutputs();
 
 	if (PropertyChangedEvent.MemberProperty && GraphNode && ContainExpression())
 	{
 		const FName PropertyName = PropertyChangedEvent.MemberProperty->GetFName();
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(UMaterialExpressionCustom, Inputs)) //~ Expression are valid as long the material editor exist or compile manually the mat, this prevent the editor to crash
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UMaterialExpressionCustom, Inputs) ||
+			PropertyName == GET_MEMBER_NAME_CHECKED(UMaterialExpressionCustom, AdditionalOutputs))
 		{
 			GraphNode->ReconstructNode();
 		}
 	}
 	Custom->IncludeFilePaths = IncludeFilePaths;
+	
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+void UMaterialExpressionCustomReader::RebuildOutputs()
+{
+	Outputs.Reset(Custom->AdditionalOutputs.Num() + 1);
+	if (Custom->AdditionalOutputs.Num() == 0)
+	{
+		bShowOutputNameOnPin = false;
+		Outputs.Add(FExpressionOutput(TEXT("")));
+	}
+	else
+	{
+		bShowOutputNameOnPin = true;
+		Outputs.Add(FExpressionOutput(TEXT("return")));
+		for (const FCustomOutput& CustomOutput : Custom->AdditionalOutputs)
+		{
+			if (!CustomOutput.OutputName.IsNone())
+			{
+				Outputs.Add(FExpressionOutput(CustomOutput.OutputName));
+			}
+		}
+	}
 }
 
 #endif // WITH_EDITOR
@@ -105,6 +132,7 @@ void UMaterialExpressionCustomReader::Update()
 	Custom->OutputType = OutputType;
 	Custom->Description = NodeName;
 	Custom->Inputs = Inputs;
+	Custom->AdditionalOutputs = CustomOutputs;
 }
 
 #if WITH_EDITOR
@@ -164,7 +192,7 @@ uint32 UMaterialExpressionCustomReader::GetOutputType(int32 OutputIndex)
 	return Custom->GetOutputType(OutputIndex);
 }
 
-bool UMaterialExpressionCustomReader::ParseFile(const FString& File, FString& OutCode, TArray<FString>& OutVariables)
+bool UMaterialExpressionCustomReader::ParseFile(const FString& File, FString& OutCode,TArray<FString>& InputVariables, TArray<FString>& OutputVariables,TArray<ECustomMaterialOutputType>&OutputTypes)
 {
 	if (!FPaths::FileExists(File)) return false;
 
@@ -173,7 +201,9 @@ bool UMaterialExpressionCustomReader::ParseFile(const FString& File, FString& Ou
 
 	if(!Lines.Num()) return false;
 
-	OutVariables.Empty();
+	InputVariables.Empty();
+	OutputVariables.Empty();
+	OutputTypes.Empty();
 	int32 CodeStart = -1;
 	for (int32 i = 0; i < Lines.Num(); i++)
 	{
@@ -181,13 +211,51 @@ bool UMaterialExpressionCustomReader::ParseFile(const FString& File, FString& Ou
 		if ((Lines[i].Contains("float") || Lines[i].Contains("int") || Lines[i].Contains("texture")
 			|| Lines[i].Contains("double")|| Lines[i].Contains("uint")|| Lines[i].Contains("half")) && Lines[i].Contains(";"))
 		{
+			FString Left;
 			FString right;
-			Lines[i].Split(" ", nullptr, &right);
 			FString Variable;
+			Lines[i].Split(" ", &Left, &right);
+			if(Left == "out")
+			{
+				
+				FString End;
+				FString OutputType;
+				right.Split(" ", &OutputType, &Variable);
+				//switch OutputType
+				if(OutputType=="float")
+				{
+					OutputTypes.Add(ECustomMaterialOutputType::CMOT_Float1);
+				}
+				else if(OutputType=="float2")
+				{
+					OutputTypes.Add(ECustomMaterialOutputType::CMOT_Float2);
+				}
+				else if(OutputType=="float3")
+				{
+					OutputTypes.Add(ECustomMaterialOutputType::CMOT_Float3);
+				}
+				else if(OutputType=="float4")
+				{
+					OutputTypes.Add(ECustomMaterialOutputType::CMOT_Float4);
+				}
+				else
+				{
+					OutputTypes.Add(ECustomMaterialOutputType::CMOT_Float3);
+				}
+				
+				Variable.Split(";",&End,nullptr);
+				if (!End.IsEmpty())
+				{
+					OutputVariables.Add(End);
+				}
+				continue;
+			}
+			
+			//Lines[i].Split(" ", nullptr, &right);
 			right.Split(";", &Variable, nullptr);
 			if (!Variable.IsEmpty())
 			{
-				OutVariables.Add(Variable);
+				InputVariables.Add(Variable);
 			}
 		}
 		else
@@ -223,6 +291,32 @@ bool UMaterialExpressionCustomReader::HasDifferentVariables(const TArray<FString
 			for (auto& input : Inputs)
 			{
 				if (InVariables[i] == input.InputName.ToString())
+				{
+					bFound = true;
+				}
+			}
+
+			if (!bFound)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+	return true;
+}
+
+bool UMaterialExpressionCustomReader::HasDifferentOutVariables(const TArray<FString>& InVariables)
+{
+	if (InVariables.Num() == CustomOutputs.Num())
+	{
+		for (int32 i = 0; i < InVariables.Num(); i++)
+		{
+			bool bFound = false;
+
+			for (auto& Output : CustomOutputs)
+			{
+				if (InVariables[i] == Output.OutputName.ToString())
 				{
 					bFound = true;
 				}
@@ -284,7 +378,53 @@ void UMaterialExpressionCustomReader::UpdateInputs(const TArray<FString>& InVari
 
 }
 
-void UMaterialExpressionCustomReader::UpdateNode(const FString& InCode, const TArray<FString>& InVariables)
+void UMaterialExpressionCustomReader::UpdateOutputs(const TArray<FString>& InVariables,const TArray<ECustomMaterialOutputType>& OutputTypes)
+{
+	while (HasDifferentOutVariables(InVariables))
+	{
+		for (int32 i = 0; i < InVariables.Num(); i++)
+		{
+			bool bFound = false;
+
+			for (auto& Output : CustomOutputs)
+			{
+				if (InVariables[i] == Output.OutputName.ToString())
+				{
+					bFound = true;
+				}
+			}
+
+			if (!bFound)
+			{
+				FCustomOutput Output;
+				Output.OutputName = FName(*InVariables[i]);
+				Output.OutputType = OutputTypes[i];
+				CustomOutputs.Add(Output);
+				//Outputs.Add(FExpressionOutput(FName(InVariables[i])));
+			}
+		}
+
+		for(int32 i = 0; i < CustomOutputs.Num(); i++)
+		{
+			bool bFound = false;
+
+			for (auto& var : InVariables)
+			{
+				if (var == CustomOutputs[i].OutputName.ToString())
+				{
+					bFound = true;
+				}
+			}
+
+			if (!bFound)
+			{
+				CustomOutputs.RemoveAt(i);
+			}
+		}
+	}
+}
+
+void UMaterialExpressionCustomReader::UpdateNode(const FString& InCode, const TArray<FString>& InVariables,const TArray<FString>& OutVariables,const TArray<ECustomMaterialOutputType>& OutputtypesArray)
 {
 	if(!ContainExpression()) return;
 
@@ -305,6 +445,42 @@ void UMaterialExpressionCustomReader::UpdateNode(const FString& InCode, const TA
 			Inputs.Add(Input);
 		}
 		Custom->Inputs = Inputs;
+		if (GraphNode && ContainExpression())
+		{
+			GraphNode->ReconstructNode();
+		}
+	}
+	
+	if(!CustomOutputs.Num())
+	{
+		int OutputNum = 0;
+		for (auto& var : OutVariables)
+		{
+			
+			FCustomOutput Output;
+			Output.OutputName = FName(*var);
+			Output.OutputType = OutputtypesArray[OutputNum];
+			CustomOutputs.Add(Output);
+			OutputNum++;
+			
+		}
+		Custom->AdditionalOutputs = CustomOutputs;
+		RebuildOutputs();
+		
+		
+		if (GraphNode && ContainExpression())
+		{
+			GraphNode->ReconstructNode();
+		}
+		
+	}
+	
+	
+	
+	if (HasDifferentVariables(InVariables))
+	{
+		UpdateInputs(InVariables);
+		Custom->Inputs = Inputs;
 		//~ Refresh node
 		if (GraphNode && ContainExpression())
 		{
@@ -312,11 +488,12 @@ void UMaterialExpressionCustomReader::UpdateNode(const FString& InCode, const TA
 		}
 	}
 	
-	
-	if (HasDifferentVariables(InVariables))
+	if(HasDifferentOutVariables(OutVariables))
 	{
-		UpdateInputs(InVariables);
-		Custom->Inputs = Inputs;
+		UpdateOutputs(OutVariables,OutputtypesArray);
+		Custom->AdditionalOutputs = CustomOutputs;
+		RebuildOutputs();
+		//Custom->RebuildOutputs();
 		//~ Refresh node
 		if (GraphNode && ContainExpression())
 		{

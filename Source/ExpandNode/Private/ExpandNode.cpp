@@ -44,14 +44,16 @@ FFileScanner*  FExpandNodeModule::GetFileScanner()
 void FExpandNodeModule::OnFileUpdated(const FString& File)
 {
 	FString Code;
-	TArray<FString> Variables;
-	if (UMaterialExpressionCustomReader::ParseFile(File, Code, Variables))
+	TArray<FString> InVariables;
+	TArray<FString> OutVariables;
+	TArray<ECustomMaterialOutputType> Outputtypes;
+	if (UMaterialExpressionCustomReader::ParseFile(File, Code, InVariables,OutVariables,Outputtypes))
 	{
 		for (TObjectIterator<UMaterialExpressionCustomReader> It; It; ++It)
 		{
-			if (!It->IsPendingKill() && File == It->File.FilePath)
+			if (IsValid(*It) && File == It->File.FilePath)
 			{
-				It->UpdateNode(Code, Variables);
+				It->UpdateNode(Code, InVariables,OutVariables,Outputtypes);
 			}
 		}
 	}	

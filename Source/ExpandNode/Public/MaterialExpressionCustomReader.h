@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include <Materials/MaterialExpression.h>
 #include <Tickable.h>
-#include <Materials/MaterialExpressionCustom.h>
+#include "Materials/MaterialExpressionCustom.h"
 #include "MaterialExpressionCustomReader.generated.h"
 
 
@@ -47,10 +47,14 @@ public:
 	//~ Inputs, this will go inside the material expression custom node
 	UPROPERTY()
 		TArray<struct FCustomInput> Inputs;
+ 	
+ 	UPROPERTY()
+ 		TArray<struct FCustomOutput> CustomOutputs;
 
 	//~ Begin UObject Interface.
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	void RebuildOutputs();
 #endif // WITH_EDITOR
 
 	virtual void PostLoad() override;
@@ -79,7 +83,7 @@ public:
 	 * @param: OutCode		- String containing the code
 	 * @param: OutVariables - String containing the variables found
 	*/
-	static bool ParseFile(const FString& File, FString& OutCode, TArray<FString>& OutVariables);
+	static bool ParseFile(const FString& File, FString& OutCode, TArray<FString>& InputVariables, TArray<FString>& OutputVariables,TArray<ECustomMaterialOutputType>&OutputTypes);
 
 private:
 	/**
@@ -89,12 +93,16 @@ private:
 	*/
 	bool HasDifferentVariables(const TArray<FString>& InVariables);
 
+ 	bool HasDifferentOutVariables(const TArray<FString>& InVariables);
+
 	/**
 	 * update the variables inputs for this node
 	 *
 	 * @param: InVariables	- New set of variables to set 
 	*/
 	void UpdateInputs(const TArray<FString>& InVariables);
+
+ 	void UpdateOutputs(const TArray<FString>& InVariables,const TArray<ECustomMaterialOutputType>& OutputTypes);
 
 	//~ Check if the owner material contain this node expression 
 	//~ (note UE does not remove nodes until refresh the material editor, so this lead to crashes trying to refresh a node that was remove from the material)
@@ -108,7 +116,7 @@ public:
 	 * @param: InCode		- Code to update
 	 * @param: InVariables	- Variables to update
 	*/
-	void UpdateNode(const FString& InCode, const TArray<FString>& InVariables);
+	void UpdateNode(const FString& InCode, const TArray<FString>& InVariables, const TArray<FString>& OutVariables,const TArray<ECustomMaterialOutputType>& OutputtypesArray);
 	
 
 	
